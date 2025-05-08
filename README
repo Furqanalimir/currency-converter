@@ -1,0 +1,33 @@
+# Currency Converter API
+
+A simple Go-based REST API for currency conversion. It provides endpoints to get the latest exchange rate, historical exchange rates, and convert currency values.
+
+---
+
+## Features
+
+- Fetch real-time exchange rates
+- Query historical exchange rates over a date range
+- Convert currency amounts between two currencies
+- In-memory caching with automatic expiration
+- Graceful server shutdown and background cron job support
+
+---
+
+## API Endpoints
+
+### Get Latest Exchange Rate
+Returns the latest exchange rate from one currency to another.
+
+```bash
+curl "http://localhost:8080/latest?from=USD&to=INR"
+curl "http://localhost:8080/history?from=USD&to=INR&start=2025-01-01&end=2025-01-03"
+curl "http://localhost:8080/convert?from=USD&to=INR&amount=100"
+
+### install delve
+> go install github.com/go-delve/delve/cmd/dlv@latest
+### verify installation
+> dlv version
+
+# Install dependencies
+> go mod tidy
