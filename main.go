@@ -19,16 +19,13 @@ import (
 )
 
 func main() {
-	// Initialize application components
 	if err := cache.Init(); err != nil {
 		log.Fatalf("Failed to initialize cache: %v", err)
 	}
 
-	// Set up Gin router
 	router := gin.Default()
 	h := handler.NewHandler()
 
-	// Define routes
 	api := router.Group("/")
 	{
 		api.GET("convert", h.ConvertHandler)
@@ -36,7 +33,6 @@ func main() {
 		api.GET("history", h.HistoryHandler)
 	}
 
-	// Create HTTP server
 	srv := &http.Server{
 		Addr:    ":8080",
 		Handler: router,
@@ -55,14 +51,13 @@ func main() {
 		}
 	}()
 
-	// Listen for OS signals for graceful shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit // Wait for signal
+	<-quit 
 
 	log.Println("Shutting down server...")
 
-	// Gracefully shut down with timeout
+	// gracefully shut down with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
