@@ -31,3 +31,11 @@ curl "http://localhost:8080/convert?from=USD&to=INR&amount=100"
 
 # Install dependencies
 > go mod tidy
+
+# To RUN with debugger
+### this can be run with vscode debugger, configuration is provided in /.vscode/launch.json file.
+
+# Steps to run with debugger:
+# Rename dev.env to .env
+
+# Execute the command: go run main.go
