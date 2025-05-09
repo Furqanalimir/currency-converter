@@ -3,7 +3,6 @@ package service
 import (
 	"currency-service/client"
 	"time"
-	"fmt"
 )
 
 type ConverterService struct {
