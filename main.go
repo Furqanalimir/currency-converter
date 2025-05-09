@@ -41,16 +41,13 @@ func main() {
 		Addr:    ":8080",
 		Handler: router,
 	}
-	utils.InitCron()
 
-	// Add a custom job from main
 	utils.AddCronJob("*/30 * * * *", func() {
 		fmt.Println("Custom job ran at", time.Now())
 		c := client.NewClient()
 		c.GetExchangeRate("USD", "INR", time.Now())
 	})
 
-	// Run server in a goroutine
 	go func() {
 		log.Println("Server running on http://localhost:8080")
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
