@@ -24,15 +24,14 @@ curl "http://localhost:8080/latest?from=USD&to=INR"
 curl "http://localhost:8080/history?from=USD&to=INR&start=2025-01-01&end=2025-01-03"
 curl "http://localhost:8080/convert?from=USD&to=INR&amount=100"
 
-### install delve
-> go install github.com/go-delve/delve/cmd/dlv@latest
-### verify installation
-> dlv version
-
 # Install dependencies
 > go mod tidy
 
 # To RUN with debugger
+### install delve
+> go install github.com/go-delve/delve/cmd/dlv@latest
+### verify installation
+> dlv version
 ### this can be run with vscode debugger, configuration is provided in /.vscode/launch.json file.
 
 # Steps to run with debugger:
