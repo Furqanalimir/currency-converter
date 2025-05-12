@@ -221,6 +221,12 @@ func (m *mysqlConnection) FindOne(model, conditions interface{}) (interface{}, e
 		return nil, fmt.Errorf("database connection is not active")
 	}
 
+	reflectModel := reflect.TypeOf(model)
+
+	if reflectModel.Kind() != reflect.Ptr {
+		return nil, fmt.Errorf("model should be a pointer")
+	}
+	
 	if err := m.beginTransaction(ctx); err != nil {
 		return nil, fmt.Errorf("failed to initiate transaction: %v", err)
 	}
