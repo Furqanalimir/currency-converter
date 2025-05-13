@@ -5,6 +5,7 @@ import (
 	"sync"
 	"gorm.io/gorm"
 	"gorm.io/gorm/mysql"
+	"reflect"
 )
 
 // sql database config model/type
@@ -35,7 +36,9 @@ func (m *mysqlConnection) Connect(config MysqlConfig) error {
 	}
 
 	// TODO: write build uri function
-	uri := fmt.SPrintf("%s", config.UserName)
+	uri := fmt.Sprintf("%s:%s@tcp(127.0.0.1:%s)/%s?%s", 
+    config.UserName, config.Password, config.Port, config.Database, 
+    buildQueryParams(config.Params))
 
 	conn, err := gorm.Open(mysql.New(mysql.Config{DNS: uri}))
 	if err != nil {
@@ -56,7 +59,7 @@ func (m *mysqlConnection) beginTransaction(ctx context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.client != nil {
+	if m.client == nil {
 		return fmt.Errorf("database connection is not active")
 	}
 
@@ -82,7 +85,7 @@ func (m *mysqlConnection) commitTransaction(ctx context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.client != nil {
+	if m.client == nil {
 		return fmt.Errorf("database connection is not active")
 	}
 
@@ -132,7 +135,7 @@ func (m *mysqlConnection) Create(dest interface{}, model interface{}, ctx contex
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.client != nil {
+	if m.client == nil {
 		return fmt.Errorf("database connection is not active")
 	}
 
@@ -153,13 +156,14 @@ func (m *mysqlConnection) Create(dest interface{}, model interface{}, ctx contex
 		}
 		return fmt.Errorf("failed to commit transaction: %v", err)
 	}
+	return nil
 }
 
 func (m *mysqlConnection) Update(dest, model, conditions interface{}, ctx context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.client != nil {
+	if m.client == nil {
 		return fmt.Errorf("database connection is not active")
 	}
 
@@ -213,7 +217,8 @@ func (m *mysqlConnection) Delete(model, conditions interface{}, ctx context.Cont
 	return nil
 }
 
-func (m *mysqlConnection) FindOne(model, conditions interface{}) (interface{}, error) {
+
+func (m *mysqlConnection) FindOne(ctx context.Context, model, conditions interface{}) (interface{}, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -226,16 +231,16 @@ func (m *mysqlConnection) FindOne(model, conditions interface{}) (interface{}, e
 	if reflectModel.Kind() != reflect.Ptr {
 		return nil, fmt.Errorf("model should be a pointer")
 	}
-	
-	if err := m.beginTransaction(ctx); err != nil {
-		return nil, fmt.Errorf("failed to initiate transaction: %v", err)
+
+	if reflectModel.Elem().Kind() != reflect.Struct || reflectModel.Elem().Kind() != reflect.Slice{
+		return nil, fmt.Errorf("model should be a struct or slice")
 	}
 
-	if err := m.transaction.WithContext(ctx).Where(conditions).First(model).Error; err != nil {
+	if err := m.client.WithContext(ctx).Where(conditions).First(model).Error; err != nil {
 		return nil, err
 	}
 	
-	return nil
+	return model, nil
 }
 
 func (m *mysqlConnection) FindAll(ctx context.Context, model, conditions interface{}) (interface{}, error) {
@@ -256,14 +261,45 @@ func (m *mysqlConnection) FindAll(ctx context.Context, model, conditions interfa
 		return nil, fmt.Errorf("model should be a pointer to a slice")
 	}
 
-	if err := m.beginTransaction(ctx); err != nil {
-		return nil, fmt.Errorf("failed to initiate transaction: %v", err)
-	}
-
-	if err := m.transaction.WithContext(ctx).Where(conditions).Find(model).Error; err != nil {
+	if err := m.client.WithContext(ctx).Where(conditions).Find(model).Error; err != nil {
 		return nil, err
 	}
 
 	return model, nil
 }
 
+func (m *mysqlConnection) Upsert(ctx context.Context, model interface{}) (interface{}, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.client == nil {
+		return nil, fmt.Errorf("database connection is not active")
+	}
+
+	reflectModel := reflect.TypeOf(model)
+
+	if reflectModel.Kind() != reflect.Ptr {
+		return nil, fmt.Errorf("model should be a pointer")
+	}
+
+	if reflectModel.Elem().Kind() != reflect.Struct {
+		return nil, fmt.Errorf("model should be a pointer to a struct")
+	}
+
+	if err := m.beginTransaction(ctx); err != nil {
+		return nil, err
+	}
+
+	if err := m.transaction.WithContext(ctx).Save(model).Error; err != nil {
+		return nil, fmt.Errorf("failed to upsert model: %v", err)
+	}
+
+	if err := m.commitTransaction(ctx); err != nil {
+		if trxnErr := m.rollbackTransaction(ctx); trxnErr != nil {
+			return nil, trxnErr
+		}
+		return nil, fmt.Errorf("failed to commit transaction: %v", err)
+	}
+
+	return model, nil
+}
